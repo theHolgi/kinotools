@@ -1,0 +1,2 @@
+#!/bin/sh
+mv $* /srv/dev-disk-by-label-Trailers/archiv
