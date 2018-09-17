@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 import os
 import imaplib,email
 import zipfile
@@ -14,7 +14,7 @@ debuglevel = 0
 
 def debug(msg, lvl=1):
     if debuglevel >= lvl:
-        print msg + "\n"
+        print (msg + "\n")
 
 def parse_mail(mail, count=1):
     n = 1
@@ -29,11 +29,13 @@ def parse_mail(mail, count=1):
            if filename is None:
                debug("Dateiname konnte nicht ermittelt werden",1)
                filename = "attachment.zip"
+           print ("Message: "+str(count))
+           print ("Filename: "+filename)
            filename = "/tmp/msg" + count + "_" + filename
            print ("Speichere attachment: " + str(filename))
            content = part.get_payload(decode = True)
            f = open(filename, "w")
-           f.write(content)
+           f.write(content.decode('latin1'))
            f.close()
            # Now, unzip
            if zipfile.is_zipfile(filename):
@@ -64,10 +66,10 @@ for num in data[0].split():
       debug("-> Nachricht %s schon gespeichert" % (num))
     else:                   
        typ, data = M.fetch(num, '(RFC822)')
-       mail = email.message_from_string(data[0][1])
+       mail = email.message_from_bytes(data[0][1])
        debug('Message %s Subject:%s' % (num, mail["Subject"]))
 #    print 'Message %s Filename:%s\n' % (num, mail.get_filename())
-       if parse_mail(mail, count=num):
+       if parse_mail(mail, count=num.decode('utf-8')):
           debug("Schluessel gespeichert von dieser Nachricht",1)
           M.store(num, '+FLAGS','KinoStored')
 M.close()
