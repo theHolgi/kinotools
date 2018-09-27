@@ -6,7 +6,7 @@ import ConfigParser
 
 outdir = '/srv/dev-disk-by-label-Trailers/neue/Keys'
 
-secretsfile='secrets.ini'
+secretsfile='/home/insel_dcp/tools/secrets.ini'
 secretssect='Email'
 config = ConfigParser.ConfigParser()
 config.read(secretsfile)
