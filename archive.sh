@@ -1,5 +1,5 @@
 #!/bin/bash
-cd /srv/dev-disk-by-label-Trailers/neue/sharc
+cd /srv/trailers/neue
 # Alles aelter als 100 Tage
-find  . -maxdepth 1 -mtime +100 |xargs -I XX  mv XX /srv/dev-disk-by-label-Trailers/archiv/
+find  . sharc -maxdepth 1 -mtime +100 |xargs -I XX  mv XX /srv/trailers/archiv/
 

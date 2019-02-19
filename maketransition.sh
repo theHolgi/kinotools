@@ -32,7 +32,7 @@ if ls $IN/*.tif 2>/dev/null; then
   #cp silence.mxf $OUTDIR
 
   for infile in $IN/*.tif; do
-    INFILE=`basename $infile`
+    INFILE=`basename "$infile"`
     NAME="${INFILE%.*}"
     TRANSITIONOUTDIR=$TRANSITIONDIR/$NAME
     J2C=$NAME.j2c
@@ -43,6 +43,6 @@ if ls $IN/*.tif 2>/dev/null; then
     $DOCKERCMD opendcp_mxf -i $DOCKERTMP/$J2C -o $DOCKEROUT/$VIDEO -p 7
     $DOCKERCMD /bin/sh -c "cd $DOCKEROUT; opendcp_xml --reel $VIDEO -k transitional -i 'Holger Lamm' -t \"$DCPNAME\" -a \"$DCPNAME\""
     mkdir -p $TRANSITIONOUTDIR
-    mv -v $OUTDIR/* $TRANSITIONOUTDIR && mv $infile $OUT
+    mv -v $OUTDIR/* $TRANSITIONOUTDIR && mv "$infile" $OUT
   done;
 fi;
