@@ -72,7 +72,11 @@ class Transition:
             dcpname = name + "_XSN_F_2K_" + date.today().strftime("%Y%m%d") + "_SMPTE"
             if fsk is not None:
                 dcpname = name + "_XSN_F-" + str(fsk) + "_2K_" + date.today().strftime("%Y%m%d") + "_SMPTE"
-            debug("Create " + dcpname)
+            print("========================================================================================\n" +
+                  "Input: " + input + "\n" + 
+                  "DCP: " + dcpname + "\n" +
+                  "FSK: " + str(fsk) + "\n" +
+                  "========================================================================================\n")
             j2c = os.path.join(dockertmp, name + ".j2c")
             converter.execute("opendcp_mxf -i " + j2c + " -o " + dockerout + "/" + name + ".mxf -p 7")
             converter.execute("sh -c \"cd " + dockerout + "; opendcp_xml --reel " + name + ".mxf -k transitional -i 'Holger Lamm' -t " + dcpname + " -a " + dcpname + " " + self.ratingKey(name) + "\"")
@@ -86,7 +90,6 @@ class Transition:
         for candidate in self._fsk.keys():
             m = re.search(candidate, name, re.I)
             if m:
-                debug("FSK of " + name + " is " + str(self._fsk[candidate]))
                 return self._fsk[candidate]
     def ratingKey(self, name):
         fsk = self.fskOf(name)
