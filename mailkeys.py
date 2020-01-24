@@ -3,6 +3,7 @@ import os
 import imaplib,email
 import zipfile
 import ConfigParser
+from datetime import datetime
 
 outdir = '/srv/dev-disk-by-label-Trailers/neue/Keys'
 
@@ -11,7 +12,7 @@ secretssect='Email'
 config = ConfigParser.ConfigParser()
 config.read(secretsfile)
 
-debuglevel = 0
+debuglevel = 1
 
 def debug(msg, lvl=1):
     if debuglevel >= lvl:
@@ -23,7 +24,7 @@ def parse_mail(mail, count=1):
     for part in mail.walk():
        debug("----- part %d (%s) -----------" % (n, part.get_content_type()))
        debug(str(part)[:160] + "...",2)
-       if part.get_content_type() in ("application/zip", "application/octet-stream"):
+       if part.get_content_type() in ("application/zip", "application/octet-stream", "application/x-zip-compressed"):
            filename = part.get_filename()         # Content-Disposition: ...
            if filename is None:
                filename =  part.get_param("name")      # Content-Type: application/zip; name=Feature_Keys_1033707_Filminsel_Biblis.zip
@@ -53,6 +54,7 @@ def parse_mail(mail, count=1):
        n += 1
     return stored
 
+debug(" ======================== " + datetime.now().isoformat() + " ==========================")
 M = imaplib.IMAP4_SSL(config.get(secretssect,'Host'))
 M.debug=debuglevel
 M.login(config.get(secretssect,'User'), config.get(secretssect,'Passwd'))
