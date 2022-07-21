@@ -24,7 +24,11 @@ class KDM:
    def validfrom(self) -> Optional[datetime]:
       result = self._etree.find('.//kdm:ContentKeysNotValidBefore', KDM.ns)
       if result is not None:
-         return datetime.fromisoformat(result.text)
+         if result.text.index('+') > 0:
+            result = result.text[:result.text.index('+')]  # pick only the date
+         else:
+            print("Unparseable timestamp " + result.text)
+         return datetime.strptime(result, '%Y-%m-%dT%H:%M:%S')
       else:
          return None
 
@@ -33,6 +37,10 @@ class KDM:
    def validuntil(self) -> Optional[datetime]:
       result = self._etree.find('.//kdm:ContentKeysNotValidAfter', KDM.ns)
       if result is not None:
-         return datetime.fromisoformat(result.text)
+         if result.text.index('+') > 0:
+            result = result.text[:result.text.index('+')]  # pick only the date
+         else:
+            print("Unparseable timestamp " + result.text)
+         return datetime.strptime(result, '%Y-%m-%dT%H:%M:%S')
       else:
          return None

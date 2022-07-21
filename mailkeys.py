@@ -82,7 +82,7 @@ class MailParser:
             if filename is None:
                self.logger.debug("Dateiname konnte nicht ermittelt werden")
                filename = "attachment.zip"
-            filename = "/tmp/msg%i_%s" % (count, filename)
+            filename = "/tmp/msg%s_%s" % (count, filename)
             self.logger.info("Speichere attachment: " + filename)
             content = part.get_payload(decode=True)
             with open(filename, "wb") as f:
