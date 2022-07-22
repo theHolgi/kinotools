@@ -8,8 +8,6 @@ import configparser
 from datetime import datetime
 from src.kdm import KDM
 
-outdir = '/tmp/'
-
 debuglevel = 1
 
 basedir = os.path.dirname(__file__)
@@ -22,6 +20,7 @@ class MailParser:
       config = configparser.ConfigParser()
       config.read(configfile)
       self.logger = logging.getLogger(self.__class__.__name__)
+      self.outdir = config.get(self.CONFIGSECTION, 'Basepath')
       self.M = imaplib.IMAP4_SSL(config.get(self.CONFIGSECTION, 'Host'))
       self.M.debug = debuglevel
       self.M.login(config.get(self.CONFIGSECTION, 'User'), config.get(self.CONFIGSECTION, 'Passwd'))
@@ -52,7 +51,7 @@ class MailParser:
          self.M.append('INBOX', None, None, m.as_bytes())
 
    def run(self) -> None:
-      self.logger.debug(" ======================== " + datetime.now().isoformat() + " ==========================")
+      self.logger.info(" ======================== " + datetime.now().isoformat() + " ==========================")
       self.M.select()
       typ, data = self.M.search(None, 'ALL')
       for num in data[0].split():
@@ -63,12 +62,12 @@ class MailParser:
          if "KinoStored" not in flags or self.dry:
             typ, data = self.M.fetch(num, '(RFC822)')
             mail = email.message_from_bytes(data[0][1])
-            self.logger.debug('Message %s Subject:%s' % (num, mail["Subject"]))
+            self.logger.info('Ungelesene Nachricht #%s Subject:%s' % (num, mail["Subject"]))
             #    print 'Message %s Filename:%s\n' % (num, mail.get_filename())
             if self.parse_mail(mail, count=num):
                self.logger.info("Schluessel gespeichert von Machricht \"%s\"" % mail["Subject"])
-               if not self.dry:
-                  self.M.store(num, '+FLAGS', 'KinoStored')
+            if not self.dry:
+               self.M.store(num, '+FLAGS', 'KinoStored')
       self.M.close()
 
    def parse_mail(self, mail, count=1) -> bool:
@@ -85,6 +84,7 @@ class MailParser:
                self.logger.debug("Dateiname konnte nicht ermittelt werden")
                filename = "attachment.zip"
             filename = "/tmp/msg%s_%s" % (count, filename)
+
             self.logger.info("Speichere attachment: " + filename)
             content = part.get_payload(decode=True)
             with open(filename, "wb") as f:
@@ -93,25 +93,23 @@ class MailParser:
             if zipfile.is_zipfile(filename):
                z = zipfile.ZipFile(filename)
                for memberfile in z.namelist():
-                  self.logger.info("... " + memberfile)
-                  if memberfile[-4:].lower() == '.xml':
-                     member = z.extract(memberfile, outdir)
-                     kdm = KDM.from_file(member)
-                     if kdm.validfrom is not None:
-                        self.logger.info("Is valid from: %s ... %s" % (kdm.validfrom, kdm.validuntil))
-                        self.add_kdm_message("KDM %s is valid from %s to %s" % (memberfile, kdm.validfrom.isoformat(), kdm.validuntil.isoformat()))
+                  if os.path.exists(self.outdir + "/" + memberfile):
+                     self.logger.info(memberfile + " existiert bereits")
                   else:
-                     self.logger.info(" Endung " + memberfile[-4:] + " ist kein XML.")
+                     self.logger.info("... " + memberfile)
+                     if memberfile[-4:].lower() == '.xml':
+                        member = z.extract(memberfile, self.outdir)
+                        stored = True
+                        kdm = KDM.from_file(member)
+                        if kdm.validfrom is not None:
+                           self.logger.info("Is valid from: %s ... %s" % (kdm.validfrom, kdm.validuntil))
+                           self.add_kdm_message("KDM %s is valid from %s to %s" % (memberfile, kdm.validfrom.isoformat(), kdm.validuntil.isoformat()))
+                     else:
+                        self.logger.info(" Endung " + memberfile[-4:] + " ist kein XML.")
                # Aufraeumen
                os.remove(filename)
             else:
                self.logger.info("Kein ZIP")
-               kdm = KDM.from_text(content)
-               if kdm.validfrom is not None:
-                  self.logger.info("Is valid from: %s ... %s" % (kdm.validfrom, kdm.validuntil))
-                  self.add_kdm_message("KDM %s is valid from %s to %s"
-                                       % (filename, kdm.validfrom.isoformat(), kdm.validuntil.isoformat()))
-            stored = True
          n += 1
       return stored
 
