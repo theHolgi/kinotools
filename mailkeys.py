@@ -12,6 +12,8 @@ outdir = '/tmp/'
 
 debuglevel = 1
 
+basedir = os.path.dirname(__file__)
+
 
 class MailParser:
    CONFIGSECTION = 'Email'
@@ -105,7 +107,10 @@ class MailParser:
             else:
                self.logger.info("Kein ZIP")
                kdm = KDM.from_text(content)
-               self.logger.info("Is valid from: %s ... %s" % (kdm.validfrom, kdm.validuntil))
+               if kdm.validfrom is not None:
+                  self.logger.info("Is valid from: %s ... %s" % (kdm.validfrom, kdm.validuntil))
+                  self.add_kdm_message("KDM %s is valid from %s to %s"
+                                       % (filename, kdm.validfrom.isoformat(), kdm.validuntil.isoformat()))
             stored = True
          n += 1
       return stored
@@ -121,7 +126,7 @@ if __name__ == '__main__':
    args = arg.parse_args()
    logging.basicConfig(level=logging.DEBUG if args.debug else logging.INFO)
 
-   parser = MailParser('secrets.ini')
+   parser = MailParser(basedir + '/secrets.ini')
    if args.dry_run:
       parser.dry_run()
    parser.run()
