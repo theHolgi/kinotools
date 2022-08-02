@@ -4,31 +4,23 @@ import imaplib
 import logging
 import email
 import zipfile
-import configparser
+from src.settings import SETTINGS
 from datetime import datetime
 from src.kdm import KDM
+from src.mailbox import MAILBOX
 
 debuglevel = 1
 
-basedir = os.path.dirname(__file__)
-
 
 class MailParser:
-   CONFIGSECTION = 'Email'
 
-   def __init__(self, configfile: str):
-      config = configparser.ConfigParser()
-      config.read(configfile)
+   def __init__(self):
+      config = SETTINGS()
       self.logger = logging.getLogger(self.__class__.__name__)
       self.outdir = config.get(self.CONFIGSECTION, 'Basepath')
-      self.M = imaplib.IMAP4_SSL(config.get(self.CONFIGSECTION, 'Host'))
-      self.M.debug = debuglevel
-      self.M.login(config.get(self.CONFIGSECTION, 'User'), config.get(self.CONFIGSECTION, 'Passwd'))
+      self.M = MAILBOX(debuglevel)
       self.dry = True
       self.messages = []
-
-   def __del__(self):
-      self.M.logout()
 
    def dry_run(self):
       self.dry = True
@@ -42,17 +34,10 @@ class MailParser:
 
    def mail_report(self) -> None:
       if len(self.messages) > 0:
-         m = email.message.EmailMessage()
-         m.set_content("\n".join(self.messages))
-         m['Subject'] = "KDM download report"
-         m['From'] = "robot@filminsel-biblis.de"
-         m['To'] = "dcinfo@filminsel-biblis.de"
-
-         self.M.append('INBOX', None, None, m.as_bytes())
+         self.M.self_mail("KDM download report", "\n".join(self.messages))
 
    def run(self) -> None:
       self.logger.info(" ======================== " + datetime.now().isoformat() + " ==========================")
-      self.M.select()
       typ, data = self.M.search(None, 'ALL')
       for num in data[0].split():
          typ, data = self.M.fetch(num, 'FLAGS')
@@ -124,7 +109,7 @@ if __name__ == '__main__':
    args = arg.parse_args()
    logging.basicConfig(level=logging.DEBUG if args.debug else logging.INFO)
 
-   parser = MailParser(basedir + '/secrets.ini')
+   parser = MailParser()
    if args.dry_run:
       parser.dry_run()
    parser.run()
