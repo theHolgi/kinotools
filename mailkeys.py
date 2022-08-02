@@ -13,7 +13,7 @@ debuglevel = 1
 
 
 class MailParser:
-
+   CONFIGSECTION = 'Email'
    def __init__(self):
       config = SETTINGS()
       self.logger = logging.getLogger(self.__class__.__name__)

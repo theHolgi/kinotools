@@ -15,7 +15,8 @@ class DISKWATCH:
    def run(self) -> None:
       for disk in ["Features", "Trailers"]:
          hdd = psutil.disk_usage(self.settings.get(self.CONFIGSECTION, disk))
-         if hdd.percent > 90:
+         print("Disk " + disk + " has " + str(hdd.percent) + "% free.")
+         if hdd.percent > 50:
             if not self.settings.get_runtime('disk_warn_' + disk):
                self.warn_mail(disk, hdd)
                self.settings.set_runtime('disk_warn_' + disk, 1)
@@ -26,7 +27,7 @@ class DISKWATCH:
    def warn_mail(self, diskname: str, obj):
       m = MAILBOX()
       m.self_mail("HDD " + diskname + " running full", "Disk " + diskname + " is pretty full. Please clean up.\n" +
-                  f"Percentage used: {obj.percent} ({obj.free / (1024*1024)} MB free)\n")
+                  "Percentage used: " + str(obj.percent) + " (" + str(obj.free / (1024*1024)) + " MB free)\n")
 
 
 if __name__ == '__main__':
