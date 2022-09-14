@@ -25,7 +25,11 @@ class KDM:
    def validfrom(self) -> Optional[datetime]:
       result = self._etree.find('.//kdm:ContentKeysNotValidBefore', KDM.ns)
       if result is not None:
-         return datetime.fromisoformat(result.text)
+         if result.text.index('+') > 0:
+            result = result.text[:result.text.index('+')]  # pick only the date
+         else:
+            print("Unparseable timestamp " + result.text)
+         return datetime.strptime(result, '%Y-%m-%dT%H:%M:%S')
       else:
          return None
 
@@ -34,7 +38,11 @@ class KDM:
    def validuntil(self) -> Optional[datetime]:
       result = self._etree.find('.//kdm:ContentKeysNotValidAfter', KDM.ns)
       if result is not None:
-         return datetime.fromisoformat(result.text)
+         if result.text.index('+') > 0:
+            result = result.text[:result.text.index('+')]  # pick only the date
+         else:
+            print("Unparseable timestamp " + result.text)
+         return datetime.strptime(result, '%Y-%m-%dT%H:%M:%S')
       else:
          return None
 
@@ -54,7 +62,8 @@ class KDM:
       result = self._etree.find('.//kdm:ContentTitleText', KDM.ns)
       if result is not None:
          result = result.text
-         if m := re.search("_[57]1", result):
+         m = re.search("_[57]1", result)
+         if m:
             result = result[:m.end()]
          return result
       else:
@@ -67,5 +76,6 @@ class KDM:
       return self.validfrom.isocalendar()[1] == self.validuntil.isocalendar()[1]  # Valid on same week - i.e. latest until sunday
 
    def tohtml(self) -> str:
-      return self.title + f"""\n<table><tr><td {'class="critical"' if self.criticalfrom() else ''}>{self.validfrom.strftime("%a %d.%m.")}</td>""" + \
-      f"""<td>-</td><td {'class="critical"' if self.criticaluntil() else ''}>{self.validuntil.strftime("%a %d.%m.")}</td></tr></table>"""
+      return self.title + "\n<table><tr><td" + (' class="critical"' if self.criticalfrom() else '') + \
+      ">" + self.validfrom.strftime("%a %d.%m.") + "</td><td>-</td><td" + (' class="critical"' if self.criticaluntil() else '') +">" +\
+       self.validuntil.strftime("%a %d.%m.") + "</td></tr></table>"

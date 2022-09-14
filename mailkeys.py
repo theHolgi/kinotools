@@ -45,7 +45,7 @@ class MailParser:
 
    def _mail_header(self):
       critical = "⚠️" if any(key.criticalfrom() or key.criticaluntil() for key in self.messages) else ""
-      count = f"{len(self.messages)} " if len(self.messages) > 1 else ""
+      count = (str(len(self.messages)) +" ") if len(self.messages) > 1 else ""
       return critical + count + ",".join(set(key.shorttitle for key in self.messages)) + " keys downloaded"
 
    def mail_report(self) -> None:
