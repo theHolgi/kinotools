@@ -1,2 +1,4 @@
 *~
 secrets.ini
+*.pyc
+.live.json

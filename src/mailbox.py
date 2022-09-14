@@ -1,6 +1,6 @@
 import imaplib
 import logging
-import email
+from email.message import EmailMessage
 
 from .settings import SETTINGS
 
@@ -26,13 +26,16 @@ class MAILBOX:
    # TODO: iterator over non-"stored" messages
 
    def __del__(self):
-      self.M.logout()
+      try:
+         self.M.logout()
+      except Exception:
+         pass
 
    def self_mail(self, subject: str, body: str) -> None:
-      m = email.message.EmailMessage()
+      m = EmailMessage()
       m['Subject'] = subject
       m['From'] = "robot@filminsel-biblis.de"
       m['To'] = "dcinfo@filminsel-biblis.de"
-      m.set_content(body)
+      m.set_content(body, 'html')
 
       self.M.append('INBOX', None, None, m.as_bytes())

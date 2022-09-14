@@ -14,6 +14,7 @@ debuglevel = 1
 
 class MailParser:
    CONFIGSECTION = 'Email'
+
    def __init__(self):
       config = SETTINGS()
       self.logger = logging.getLogger(self.__class__.__name__)
@@ -25,16 +26,31 @@ class MailParser:
    def dry_run(self):
       self.dry = True
 
-   def add_kdm_message(self, msg: str) -> None:
+   def add_key(self, key: KDM) -> None:
       """
       Create a message into the log that is worth to send to the user
-      :param msg: Message (string) to send
+      :param filename: name of the file
+      :param kdm: KDM to announce
       """
-      self.messages.append(msg)
+
+      self.messages.append(key)
+
+   def _mail_body(self):
+      stylesheet = """.critical { color: red; }
+      table { border-width: 2px; border-style: solid; }"""
+      return """<html lang="en">
+<head><meta charset="UTF-8"><title>Title</title><style>"""+stylesheet+"""</style></head>
+<body>
+""" + "\n".join(kdm.tohtml() for kdm in self.messages) + "\n</body>\n</html>"
+
+   def _mail_header(self):
+      critical = "⚠️" if any(key.criticalfrom() or key.criticaluntil() for key in self.messages) else ""
+      count = f"{len(self.messages)} " if len(self.messages) > 1 else ""
+      return critical + count + ",".join(set(key.shorttitle for key in self.messages)) + " keys downloaded"
 
    def mail_report(self) -> None:
       if len(self.messages) > 0:
-         self.M.self_mail("KDM download report", "\n".join(self.messages))
+         self.M.self_mail(self._mail_header(), self._mail_body())
 
    def run(self) -> None:
       self.logger.info(" ======================== " + datetime.now().isoformat() + " ==========================")
@@ -68,31 +84,34 @@ class MailParser:
             if filename is None:
                self.logger.debug("Dateiname konnte nicht ermittelt werden")
                filename = "attachment.zip"
-            filename = "/tmp/msg%s_%s" % (count, filename)
+            tmpfile = "/tmp/msg%s_%s" % (count, filename)
 
-            self.logger.info("Speichere attachment: " + filename)
+            self.logger.info("Speichere attachment: " + tmpfile)
             content = part.get_payload(decode=True)
-            with open(filename, "wb") as f:
+            with open(tmpfile, "wb") as f:
                f.write(content)
             # Now, unzip
-            if zipfile.is_zipfile(filename):
-               z = zipfile.ZipFile(filename)
+            if zipfile.is_zipfile(tmpfile):
+               dirname = self.outdir + "/" + os.path.splitext(os.path.basename(filename))[0]
+               if not os.path.exists(dirname):
+                  os.mkdir(dirname)
+               z = zipfile.ZipFile(tmpfile, mode="r")
                for memberfile in z.namelist():
-                  if os.path.exists(self.outdir + "/" + memberfile):
+                  if os.path.exists(dirname + "/" + memberfile):
                      self.logger.info(memberfile + " existiert bereits")
                   else:
                      self.logger.info("... " + memberfile)
                      if memberfile[-4:].lower() == '.xml':
-                        member = z.extract(memberfile, self.outdir)
+                        member = z.extract(memberfile, dirname)
                         stored = True
                         kdm = KDM.from_file(member)
                         if kdm.validfrom is not None:
                            self.logger.info("Is valid from: %s ... %s" % (kdm.validfrom, kdm.validuntil))
-                           self.add_kdm_message("KDM %s is valid from %s to %s" % (memberfile, kdm.validfrom.isoformat(), kdm.validuntil.isoformat()))
+                           self.add_key(kdm)
                      else:
                         self.logger.info(" Endung " + memberfile[-4:] + " ist kein XML.")
                # Aufraeumen
-               os.remove(filename)
+               os.remove(tmpfile)
             else:
                self.logger.info("Kein ZIP")
          n += 1
