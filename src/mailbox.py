@@ -1,6 +1,6 @@
 import imaplib
 import logging
-from email.message import EmailMessage
+from email.message import EmailMessage, Message
 
 from .settings import SETTINGS
 
@@ -39,3 +39,6 @@ class MAILBOX:
       m.set_content(body, 'html')
 
       self.M.append('INBOX', None, None, m.as_bytes())
+
+   def forward(self, mail: Message, recp: str) -> None:
+      self.logger.debug("Writing message to " + recp)

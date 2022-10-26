@@ -19,6 +19,7 @@ class MailParser:
       config = SETTINGS()
       self.logger = logging.getLogger(self.__class__.__name__)
       self.outdir = config.get(self.CONFIGSECTION, 'Basepath')
+      self.config = config
       self.M = MAILBOX(debuglevel)
       self.dry = True
       self.messages = []
@@ -63,10 +64,23 @@ class MailParser:
          if "KinoStored" not in flags or self.dry:
             typ, data = self.M.fetch(num, '(RFC822)')
             mail = email.message_from_bytes(data[0][1])
+            uuid = mail.get('Message-ID')
+            if uuid is None:
+               self.logger.warning("%s: Keine UUID" % num)
+            else:
+               if self.config.get_runtime('parsed_' + uuid) is not None:
+                  self.logger.debug("-> Nachricht %s schon prozessiert" % num)
+                  continue
+               else:
+                  self.config.set_runtime('parsed_' + uuid, 1)
             self.logger.info('Ungelesene Nachricht #%s Subject:%s' % (num, mail["Subject"]))
+            print(mail["Subject"])
             #    print 'Message %s Filename:%s\n' % (num, mail.get_filename())
             if self.parse_mail(mail, count=num):
                self.logger.info("Schluessel gespeichert von Machricht \"%s\"" % mail["Subject"])
+            if "DCP-Download" in mail["Subject"]:
+               self.logger.info("%s ist Download mail" % num)
+               self.M.forward(mail, self.config.get(self.CONFIGSECTION, "Notify"))
             if not self.dry:
                self.M.store(num, '+FLAGS', 'KinoStored')
       self.M.close()

@@ -5,6 +5,7 @@ from typing import Any
 
 basedir = os.path.dirname(__file__)
 
+
 class SETTINGS(ConfigParser):
    settings = basedir + '/../secrets.ini'
    livedata = basedir + '/../.live.json'
