@@ -16,7 +16,7 @@ class DISKWATCH:
       for disk in ["Features", "Trailers"]:
          hdd = psutil.disk_usage(self.settings.get(self.CONFIGSECTION, disk))
          print("Disk " + disk + " has " + str(hdd.percent) + "% free.")
-         if hdd.percent > 50:
+         if hdd.percent > int(self.settings.get(self.CONFIGSECTION, "threshold")):
             if not self.settings.get_runtime('disk_warn_' + disk):
                self.warn_mail(disk, hdd)
                self.settings.set_runtime('disk_warn_' + disk, 1)
