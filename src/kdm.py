@@ -1,5 +1,4 @@
 import re
-from xml.etree.ElementTree import ElementTree
 from datetime import datetime
 from typing import Optional, Union
 from lxml import etree

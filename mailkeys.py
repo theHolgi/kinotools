@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+import hashlib
 import os
 import imaplib
 import logging
@@ -7,7 +8,7 @@ import zipfile
 from src.settings import SETTINGS
 from datetime import datetime
 from src.kdm import KDM
-from src.mailbox import MAILBOX
+from src.mailbox import Mailbox
 
 debuglevel = 1
 
@@ -20,7 +21,7 @@ class MailParser:
       self.logger = logging.getLogger(self.__class__.__name__)
       self.outdir = config.get(self.CONFIGSECTION, 'Basepath')
       self.config = config
-      self.M = MAILBOX(debuglevel)
+      self.M = Mailbox(debuglevel)
       self.dry = True
       self.messages = []
 
@@ -65,6 +66,10 @@ class MailParser:
             typ, data = self.M.fetch(num, '(RFC822)')
             mail = email.message_from_bytes(data[0][1])
             uuid = mail.get('Message-ID')
+            if uuid is None:
+               uuid = mail.get('From', '') + mail.get('Date', '')
+               uuid = hashlib.sha1(uuid.encode()).digest().hex()
+               self.logger.info("Erstelle eigene uuid: %s" % uuid)
             if uuid is None:
                self.logger.warning("%s: Keine UUID" % num)
             else:
