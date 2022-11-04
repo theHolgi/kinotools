@@ -94,7 +94,8 @@ class MailParser:
                self.M.store(num, '+FLAGS', 'KinoStored')
       self.M.close()
       if not self.dry:
-         self.config.clean_uuid_cache()
+         deleted = self.config.clean_uuid_cache()
+         self.logger.info("Removed from cache: %s" % deleted)
 
    def parse_mail(self, mail, count=1) -> bool:
       n = 1
