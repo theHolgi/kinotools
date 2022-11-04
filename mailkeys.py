@@ -5,6 +5,7 @@ import imaplib
 import logging
 import email
 import zipfile
+import binascii
 from src.settings import SETTINGS
 from datetime import datetime
 from src.kdm import KDM
@@ -67,8 +68,10 @@ class MailParser:
             mail = email.message_from_bytes(data[0][1])
             uuid = mail.get('Message-ID')
             if uuid is None:
-               uuid = mail.get('From', '') + mail.get('Date', '')
-               uuid = hashlib.sha1(uuid.encode()).digest().hex()
+               uuid = hashlib.sha1(mail.get('From', '').encode())
+               uuid.update(mail.get('Date', '').encode())
+               uuid.update(mail.get('Subject', '').encode())
+               uuid = binascii.hexlify(uuid.digest()).decode()
                self.logger.info("Erstelle eigene uuid: %s" % uuid)
             if uuid is None:
                self.logger.warning("%s: Keine UUID" % num)

@@ -1,6 +1,7 @@
 import imaplib
 import logging
 from email.message import EmailMessage, Message
+from datetime import datetime
 import smtplib
 
 from .settings import SETTINGS
@@ -38,6 +39,7 @@ class Mailbox:
       m['Subject'] = subject
       m['From'] = self.config.get(self.CONFIGSECTION, 'Sender')
       m['To'] = self.config.get(self.CONFIGSECTION, 'User')
+      m['Date'] = datetime.now().strftime("%a, %d %b %Y %H:%M:%S %z")
       m.set_content(body, 'html')
 
       self.M.append('INBOX', None, None, m.as_bytes())
