@@ -2,6 +2,9 @@
 
 Im täglichen Leben eines Kinobetreibers gibt es ein paar Aufgaben, die man wegautomatisieren möchte.
 
+Systemvoraussetzungen:
+- Python 3.4 (das NAS hat leider keine neuere Version)
+
 ## Neue Keys holen
 
 Verleiher senden Schlüssel (KDMs) per Mail. Diese müssen aus der Mail extrahiert und zum Import bereitgelegt werden.

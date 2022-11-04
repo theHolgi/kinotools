@@ -23,7 +23,7 @@ class MailParser:
       self.outdir = config.get(self.CONFIGSECTION, 'Basepath')
       self.config = config
       self.M = Mailbox(debuglevel)
-      self.dry = True
+      self.dry = False
       self.messages = []
 
    def dry_run(self):
@@ -76,11 +76,11 @@ class MailParser:
             if uuid is None:
                self.logger.warning("%s: Keine UUID" % num)
             else:
-               if self.config.get_runtime('parsed_' + uuid) is not None:
+               if self.config.query_uuid(uuid):
                   self.logger.debug("-> Nachricht %s schon prozessiert" % num)
                   continue
-               else:
-                  self.config.set_runtime('parsed_' + uuid, 1)
+               elif not self.dry:
+                  self.config.add_uuid(uuid)
             self.logger.info('Ungelesene Nachricht #%s Subject:%s' % (num, mail["Subject"]))
             print(mail["Subject"])
             #    print 'Message %s Filename:%s\n' % (num, mail.get_filename())
@@ -88,10 +88,13 @@ class MailParser:
                self.logger.info("Schluessel gespeichert von Machricht \"%s\"" % mail["Subject"])
             if "DCP-Download" in mail["Subject"]:
                self.logger.info("%s ist Download mail" % num)
-               self.M.forward(mail, self.config.get(self.CONFIGSECTION, "Notify"))
+               if not self.dry:
+                  self.M.forward(mail, self.config.get(self.CONFIGSECTION, "Notify"))
             if not self.dry:
                self.M.store(num, '+FLAGS', 'KinoStored')
       self.M.close()
+      if not self.dry:
+         self.config.clean_uuid_cache()
 
    def parse_mail(self, mail, count=1) -> bool:
       n = 1
