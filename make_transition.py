@@ -88,9 +88,10 @@ class Transition:
 
     def fskOf(self, name):
         for candidate in self._fsk.keys():
-            m = re.search(candidate, name, re.I)
-            if m:
+            if candidate in name:
                 return self._fsk[candidate]
+        return self._fsk.get('*')
+
     def ratingKey(self, name):
         fsk = self.fskOf(name)
         if fsk is None:

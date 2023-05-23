@@ -2,7 +2,7 @@
 
 import psutil
 from src.settings import SETTINGS
-from src.mailbox import MAILBOX
+from src.mailbox import Mailbox
 import os
 
 basedir = os.path.dirname(__file__)
@@ -25,7 +25,7 @@ class DISKWATCH:
                self.settings.set_runtime('disk_warn_' + disk, 0)
 
    def warn_mail(self, diskname: str, obj):
-      m = MAILBOX()
+      m = Mailbox()
       m.self_mail("HDD " + diskname + " running full", "Disk " + diskname + " is pretty full. Please clean up.\n" +
                   "Percentage used: " + str(obj.percent) + " (" + str(obj.free / (1024*1024)) + " MB free)\n")
 
