@@ -19,6 +19,7 @@ class TestSettings(unittest.TestCase):
       settings.runtime["uuids"] = ["12345678", "567890"]
       self.assertTrue(settings.query_uuid("12345678"), "UUID 12345678 is not known")
       self.assertSetEqual(settings.clean_uuid_cache(), {"567890"}, "UUID 567890 has not been queried")
+      self.assertListEqual(settings.runtime["uuids"], ["12345678"], "UUID 567890 is no longer part of the set")
 
    def test_query_runtime(self):
       """ Query runtime items"""

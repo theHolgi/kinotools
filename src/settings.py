@@ -53,6 +53,8 @@ class SETTINGS(ConfigParser):
 
    def clean_uuid_cache(self) -> Set[str]:
       to_remove = set(self.runtime["uuids"]) - self.queried_uuids
+      for key in to_remove:
+         self.runtime["uuids"].remove(key)
       self._save()
       return to_remove
 
