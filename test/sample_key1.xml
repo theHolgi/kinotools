@@ -11,8 +11,8 @@
         </Recipient>
         <CompositionPlaylistId>urn:uuid:75506f08-a51c-482b-a59c-a6375c19ac1b</CompositionPlaylistId>
         <ContentTitleText>DowntonAbbey2_FTR-5_S_DE-XX_DE_71-Atmos_2K_UP_20220323_PXU_SMPTE_VF</ContentTitleText>
-        <ContentKeysNotValidBefore>2022-07-21T22:00:00+00:00</ContentKeysNotValidBefore>
-        <ContentKeysNotValidAfter>2022-07-25T01:00:00+00:00</ContentKeysNotValidAfter>
+        <ContentKeysNotValidBefore>2022-07-21T22:00:00+02:00</ContentKeysNotValidBefore>
+        <ContentKeysNotValidAfter>2022-07-25T01:00:00+02:00</ContentKeysNotValidAfter>
       </KDMRequiredExtensions>
     </RequiredExtensions>
   </AuthenticatedPublic>

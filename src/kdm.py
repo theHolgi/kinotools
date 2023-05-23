@@ -1,5 +1,5 @@
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Union
 from lxml import etree
 
@@ -24,11 +24,7 @@ class KDM:
    def validfrom(self) -> Optional[datetime]:
       result = self._etree.find('.//kdm:ContentKeysNotValidBefore', KDM.ns)
       if result is not None:
-         if result.text.index('+') > 0:
-            result = result.text[:result.text.index('+')]  # pick only the date
-         else:
-            print("Unparseable timestamp " + result.text)
-         return datetime.strptime(result, '%Y-%m-%dT%H:%M:%S')
+         return self._parse_timestamp(result.text)
       else:
          return None
 
@@ -37,13 +33,16 @@ class KDM:
    def validuntil(self) -> Optional[datetime]:
       result = self._etree.find('.//kdm:ContentKeysNotValidAfter', KDM.ns)
       if result is not None:
-         if result.text.index('+') > 0:
-            result = result.text[:result.text.index('+')]  # pick only the date
-         else:
-            print("Unparseable timestamp " + result.text)
-         return datetime.strptime(result, '%Y-%m-%dT%H:%M:%S')
+         return self._parse_timestamp(result.text)
       else:
          return None
+
+   @staticmethod
+   def _parse_timestamp(ts: str) -> datetime:
+      if ts.index('+') > 0:
+         timestamp = datetime.strptime(ts[:ts.index('+')], '%Y-%m-%dT%H:%M:%S')  # pick only the date
+         zone = datetime.strptime(ts[ts.index('+'):], '%z').tzinfo
+      return timestamp.replace(tzinfo=timezone.utc).astimezone(zone)
 
    @property
    def shorttitle(self) -> str:
@@ -76,5 +75,5 @@ class KDM:
 
    def tohtml(self) -> str:
       return self.title + "\n<table><tr><td" + (' class="critical"' if self.criticalfrom() else '') + \
-      ">" + self.validfrom.strftime("%a %d.%m.") + "</td><td>-</td><td" + (' class="critical"' if self.criticaluntil() else '') +">" +\
-       self.validuntil.strftime("%a %d.%m.") + "</td></tr></table>"
+      ">" + self.validfrom.strftime("%a %d.%m. %H:%M") + "</td><td>-</td><td" + (' class="critical"' if self.criticaluntil() else '') +">" +\
+       self.validuntil.strftime("%a %d.%m. %H:%M") + "</td></tr></table>"
