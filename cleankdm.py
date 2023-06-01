@@ -18,7 +18,7 @@ for dirname, dirnames, filenames in os.walk('.'):
          e = KDM.from_file(filename)
          validuntil = e.validuntil
          if validuntil:
-            age = today - validuntil
+            age = today - validuntil.replace(tzinfo=None)
             if age.days < 0:
                comment=" noch gültig."
             elif age.days < 7:
