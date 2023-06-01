@@ -20,7 +20,7 @@ class SETTINGS(ConfigParser):
       try:
          with open(self.livedata) as f:
             self.runtime = json.load(f)
-      except (FileNotFoundError, json.decoder.JSONDecodeError) as e:
+      except (FileNotFoundError, ValueError) as e:
          self.runtime = {}
       if "uuids" not in self.runtime:
          self.runtime["uuids"] = []

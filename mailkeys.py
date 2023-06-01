@@ -77,11 +77,11 @@ class MailParser:
                self.logger.warning("%s: Keine UUID" % num)
             else:
                if self.config.query_uuid(uuid):
-                  self.logger.debug("-> Nachricht %s schon prozessiert" % num)
+                  self.logger.debug("-> Nachricht %s, UUID: %s schon prozessiert" % (mail["Subject"], uuid))
                   continue
                elif not self.dry:
                   self.config.add_uuid(uuid)
-            self.logger.info('Ungelesene Nachricht #%s Subject:%s' % (num, mail["Subject"]))
+            self.logger.info('Ungelesene Nachricht #%s Subject:%s, UUID:%s' % (num, mail["Subject"], uuid))
             print(mail["Subject"])
             #    print 'Message %s Filename:%s\n' % (num, mail.get_filename())
             if self.parse_mail(mail, count=num):

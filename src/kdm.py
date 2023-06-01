@@ -1,5 +1,5 @@
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional, Union
 from lxml import etree
 
@@ -39,10 +39,16 @@ class KDM:
 
    @staticmethod
    def _parse_timestamp(ts: str) -> datetime:
-      if ts.index('+') > 0:
-         timestamp = datetime.strptime(ts[:ts.index('+')], '%Y-%m-%dT%H:%M:%S')  # pick only the date
-         zone = datetime.strptime(ts[ts.index('+'):], '%z').tzinfo
-      return timestamp.replace(tzinfo=timezone.utc).astimezone(zone)
+      m = re.match(r'(\d+-\d+-\d+T\d+:\d+:\d+)([+-])(\d+):(\d+)', ts)
+      if m:
+         timestamp = datetime.strptime(m.group(1), '%Y-%m-%dT%H:%M:%S')  # pick only the date
+         hour, minute = int(m.group(3)), int(m.group(4))
+         if m.group(2) == '-':
+            hour = -hour
+         tz = timezone(offset=timedelta(hours=hour, minutes=minute))
+      else:
+         raise ValueError("No match for timestamp: " + ts)
+      return timestamp.replace(tzinfo=timezone.utc).astimezone(tz)
 
    @property
    def shorttitle(self) -> str:
