@@ -16,6 +16,7 @@ debuglevel = 1
 
 class MailParser:
    CONFIGSECTION = 'Email'
+   SCREENSECTION = 'Screen'
 
    def __init__(self):
       config = SETTINGS()
@@ -48,8 +49,9 @@ class MailParser:
 
    def _mail_header(self):
       critical = "⚠️" if any(key.criticalfrom() or key.criticaluntil() for key in self.messages) else ""
+      nonmatch = "💀 UNGÜLTIG 💀 " if any(not key.valid_for_screen() for key in self.messages) else ""
       count = (str(len(self.messages)) +" ") if len(self.messages) > 1 else ""
-      return critical + count + ",".join(set(key.shorttitle for key in self.messages)) + " Schlüssel geladen"
+      return critical + nonmatch + count + ",".join(set(key.shorttitle for key in self.messages)) + " Schlüssel geladen"
 
    def mail_report(self) -> None:
       if len(self.messages) > 0:
@@ -131,6 +133,7 @@ class MailParser:
                         member = z.extract(memberfile, dirname)
                         stored = True
                         kdm = KDM.from_file(member)
+                        kdm.for_screen(self.config.get(self.SCREENSECTION, 'pattern'))
                         if kdm.validfrom is not None:
                            self.logger.info("Is valid from: %s ... %s" % (kdm.validfrom, kdm.validuntil))
                            self.add_key(kdm)

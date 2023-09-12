@@ -11,6 +11,10 @@ class KDM:
 
    def __init__(self, tree: etree.ElementTree):
       self._etree = tree
+      self.screen = None
+
+   def for_screen(self, pattern: str) -> None:
+      self.screen = pattern
 
    @classmethod
    def from_file(cls, filename: Union[str, "Path"]):
@@ -36,6 +40,15 @@ class KDM:
          return self._parse_timestamp(result.text)
       else:
          return None
+
+   def valid_for_screen(self, pattern: Optional[str] = None) -> bool:
+      if pattern is None:
+         pattern = self.screen
+      subject = self._etree.find('.//kdm:X509SubjectName', KDM.ns)
+      if subject is None or pattern is None:
+         return True
+      else:
+         return re.search(pattern, subject.text) is not None
 
    @staticmethod
    def _parse_timestamp(ts: str) -> datetime:
@@ -74,6 +87,9 @@ class KDM:
       return self.validfrom.isocalendar()[1] == self.validuntil.isocalendar()[1]  # Valid on same week - i.e. latest until sunday
 
    def tohtml(self) -> str:
-      return self.title + "\n<table><tr><td" + (' class="critical"' if self.criticalfrom() else '') + \
+      text = self.title
+      if not self.valid_for_screen():
+         text += " <b>💀🆘💥  NICHT FÜR UNSEREN SCREEN 💥🆘💀</b>"
+      return text + "\n<table><tr><td" + (' class="critical"' if self.criticalfrom() else '') + \
       ">" + self.validfrom.strftime("%a %d.%m. %H:%M") + "</td><td>-</td><td" + (' class="critical"' if self.criticaluntil() else '') +">" +\
        self.validuntil.strftime("%a %d.%m. %H:%M") + "</td></tr></table>"
