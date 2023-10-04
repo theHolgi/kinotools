@@ -86,10 +86,10 @@ class KDM:
    def criticaluntil(self) -> bool:
       return self.validfrom.isocalendar()[1] == self.validuntil.isocalendar()[1]  # Valid on same week - i.e. latest until sunday
 
-   def tohtml(self) -> str:
+   def tohtml(self, have_valid: bool = False) -> str:
       text = self.title
       if not self.valid_for_screen():
-         text += " <b>💀🆘💥  NICHT FÜR UNSEREN SCREEN 💥🆘💀</b>"
+         text += " <b>💀🆘💥  NICHT FÜR UNSEREN SCREEN 💥🆘💀</b>" if not have_valid else " <b>🤷 nicht für unseren Screen</b>"
       return text + "\n<table><tr><td" + (' class="critical"' if self.criticalfrom() else '') + \
       ">" + self.validfrom.strftime("%a %d.%m. %H:%M") + "</td><td>-</td><td" + (' class="critical"' if self.criticaluntil() else '') +">" +\
        self.validuntil.strftime("%a %d.%m. %H:%M") + "</td></tr></table>"

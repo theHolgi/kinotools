@@ -26,6 +26,7 @@ class MailParser:
       self.M = Mailbox(debuglevel)
       self.dry = False
       self.messages = []
+      self.titles = {}
 
    def dry_run(self):
       self.dry = True
@@ -38,20 +39,32 @@ class MailParser:
       """
 
       self.messages.append(key)
+      title = key.title
+      matching = key.valid_for_screen()
+      if title not in self.titles:  # Create key in titles to tell if we have a matching key
+         self.titles[title] = matching
+      elif not self.titles[title]:  # Overwrite for the better
+         self.titles[title] = matching
 
    def _mail_body(self):
       stylesheet = """.critical { color: red; }
       table { border-width: 2px; border-style: solid; }"""
-      return """<html lang="en">
+      body = """<html lang="en">
 <head><meta charset="UTF-8"><title>Title</title><style>"""+stylesheet+"""</style></head>
 <body>
-""" + "\n".join(kdm.tohtml() for kdm in self.messages) + "\n</body>\n</html>"
+"""
+
+      for kdm in self.messages:
+         have_valid_key = self.titles.get(kdm.title, false)
+         body += kdm.tohtml(have_valid_key) + "\n"
+      return body + "\n</body>\n</html>"
 
    def _mail_header(self):
       critical = "⚠️" if any(key.criticalfrom() or key.criticaluntil() for key in self.messages) else ""
-      nonmatch = "💀 UNGÜLTIG 💀 " if any(not key.valid_for_screen() for key in self.messages) else ""
+      nonmatch = "💀 UNGÜLTIG 💀 " if any(not valid for valid in self.titles.values()) else ""
+      useless = "🤷" if any(not key.valid_for_screen() and self.titles[key.title] for key in self.messages) else ""
       count = (str(len(self.messages)) +" ") if len(self.messages) > 1 else ""
-      return critical + nonmatch + count + ",".join(set(key.shorttitle for key in self.messages)) + " Schlüssel geladen"
+      return critical + nonmatch + useless + count + ",".join(set(key.shorttitle for key in self.messages)) + " Schlüssel geladen"
 
    def mail_report(self) -> None:
       if len(self.messages) > 0:
