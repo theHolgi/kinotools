@@ -53,7 +53,7 @@ class Transition:
         tmpout  = base + "/out"
         dockertmp = dockerbase + "/tmp"
         dockerout = dockerbase + "/out"
-        converter = DockerRun("opendcp", { base: dockerbase })
+        converter = DockerRun("dcpomatic", { base: dockerbase })
         outdir += "/Transition-" + date.today().isoformat()
         
         # clean up
@@ -61,14 +61,14 @@ class Transition:
         if os.path.isdir(tmpout): shutil.rmtree(tmpout)
         os.mkdir(tmpdir)
         os.mkdir(tmpout)
-        if not os.path.isdir(outdir): os.mkdir(outdir)
-        
-        for input in self.inputs: shutil.copyfile(self.basedir + "/" + input, tmpdir + "/" + input)
-        converter.execute("opendcp_j2k -i " + dockertmp + " -o " + dockertmp + " -b 50")
-        
+        if not os.path.isdir(outdir):
+            os.mkdir(outdir)
+
         for input in self.inputs:
             name = input[:-4]
+            shutil.copyfile(self.basedir + "/" + input, tmpdir + "/" + input)
             fsk = self.fskOf(name)
+            # Hint: dcpname will be built by DCP-o-matic itself.
             dcpname = name + "_XSN_F_2K_" + date.today().strftime("%Y%m%d") + "_SMPTE"
             if fsk is not None:
                 dcpname = name + "_XSN_F-" + str(fsk) + "_2K_" + date.today().strftime("%Y%m%d") + "_SMPTE"
@@ -77,9 +77,8 @@ class Transition:
                   "DCP: " + dcpname + "\n" +
                   "FSK: " + str(fsk) + "\n" +
                   "========================================================================================\n")
-            j2c = os.path.join(dockertmp, name + ".j2c")
-            converter.execute("opendcp_mxf -i " + j2c + " -o " + dockerout + "/" + name + ".mxf -p 7")
-            converter.execute("sh -c \"cd " + dockerout + "; opendcp_xml --reel " + name + ".mxf -k transitional -i 'Holger Lamm' -t " + dcpname + " -a " + dcpname + " " + self.ratingKey(name) + "\"")
+            converter.execute("dcpomatic2_create " + input + " -o " + dockerout + " -s 10 -c XSN -n " + name)
+            converter.execute("dcpomatic_cli " + dockerout)
             
             os.mkdir(outdir + "/" + name)
             for dirname, dirnames, filenames in os.walk(tmpout):
