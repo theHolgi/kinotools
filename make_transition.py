@@ -20,7 +20,7 @@ class DockerRun:
         self._image = image
         self._mappings = ""
         for (key, value) in mappings.items():
-            self._mappings += " -v"+key+":"+value
+            self._mappings += ' -v"'+key+'":"' +value + '"'
         
     def execute(self, cmd, cwd="."):
         cmd = " ".join(["docker", "run", "--rm", self._mappings, self._image, cmd])
@@ -40,7 +40,7 @@ class Transition:
         for dirname, dirnames, filenames in os.walk(basedir):
             for filename in filenames:
                 m = re.match(".+\.tif", filename)
-                if (m):
+                if m:
                     self.inputs.append(filename)
         
         debug("Found the inputs: " + str(self.inputs))
@@ -66,7 +66,7 @@ class Transition:
 
         for input in self.inputs:
             name = input[:-4]
-            shutil.copyfile(self.basedir + "/" + input, tmpdir + "/" + input)
+            shutil.copyfile( self.basedir + "/" + input, tmpdir + "/" + input)
             fsk = self.fskOf(name)
             # Hint: dcpname will be built by DCP-o-matic itself.
             dcpname = name + "_XSN_F_2K_" + date.today().strftime("%Y%m%d") + "_SMPTE"
@@ -77,21 +77,18 @@ class Transition:
                   "DCP: " + dcpname + "\n" +
                   "FSK: " + str(fsk) + "\n" +
                   "========================================================================================\n")
-            converter.execute("dcpomatic2_create " + input + " -o " + dockerout + " -s 10 -c XSN -n " + name)
-            converter.execute("dcpomatic_cli " + dockerout)
+            converter.execute("dcpomatic2_create tmp/" + input + " -o " + dockerout + "/" + name + " -s 10 -c XSN -n " + name)
+            converter.execute("dcpomatic2_cli " + dockerout + "/" + name)
             
-            os.mkdir(outdir + "/" + name)
-            for dirname, dirnames, filenames in os.walk(tmpout):
-                for filename in filenames:
-                    shutil.move(os.path.join(tmpout, filename), os.path.join(outdir + "/" + name, filename))
+            shutil.move(os.path.join(tmpout, name), outdir)
 
-    def fskOf(self, name):
+    def fskOf(self, name) -> str:
         for candidate in self._fsk.keys():
             if candidate in name:
                 return self._fsk[candidate]
         return self._fsk.get('*')
 
-    def ratingKey(self, name):
+    def ratingKey(self, name) -> str:
         fsk = self.fskOf(name)
         if fsk is None:
             return ""
