@@ -37,36 +37,36 @@ class Transition:
             self._fsk = {}
         self.basedir = basedir
         self.inputs = []
-        for dirname, dirnames, filenames in os.walk(basedir):
-            for filename in filenames:
-                m = re.match(".+\.tif", filename)
-                if m:
-                    self.inputs.append(filename)
+        dirname, dirnames, filenames = next(os.walk(basedir))
+        self.inputs.extend(f for f in filenames if f.endswith('.tif') and not f.startswith('.'))
         
         debug("Found the inputs: " + str(self.inputs))
 
-    def generate(self, outdir):
+    @property
+    def tmpdir(self) -> str:
+        return base + "/tmp"
+
+    @property
+    def tmpout(self) -> str:
+        return base + "/out"
+
+    def generate(self):
         if len(self.inputs) == 0:
             debug("No inputs")
             return
-        tmpdir  = base + "/tmp"
-        tmpout  = base + "/out"
         dockertmp = dockerbase + "/tmp"
         dockerout = dockerbase + "/out"
         converter = DockerRun("dcpomatic", { base: dockerbase })
-        outdir += "/Transition-" + date.today().isoformat()
-        
+
         # clean up
-        if os.path.isdir(tmpdir): shutil.rmtree(tmpdir)
-        if os.path.isdir(tmpout): shutil.rmtree(tmpout)
-        os.mkdir(tmpdir)
-        os.mkdir(tmpout)
-        if not os.path.isdir(outdir):
-            os.mkdir(outdir)
+        if os.path.isdir(self.tmpdir): shutil.rmtree(self.tmpdir)
+        if os.path.isdir(self.tmpout): shutil.rmtree(self.tmpout)
+        os.mkdir(self.tmpdir)
+        os.mkdir(self.tmpout)
 
         for input in self.inputs:
             name = input[:-4]
-            shutil.copyfile( self.basedir + "/" + input, tmpdir + "/" + input)
+            shutil.copyfile(self.basedir + "/" + input, self.tmpdir + "/" + input)
             fsk = self.fskOf(name)
             # Hint: dcpname will be built by DCP-o-matic itself.
             dcpname = name + "_XSN_F_2K_" + date.today().strftime("%Y%m%d") + "_SMPTE"
@@ -79,8 +79,11 @@ class Transition:
                   "========================================================================================\n")
             converter.execute("dcpomatic2_create tmp/" + input + " -o " + dockerout + "/" + name + " -s 10 -c XSN -n " + name)
             converter.execute("dcpomatic2_cli " + dockerout + "/" + name)
-            
-            shutil.move(os.path.join(tmpout, name), outdir)
+            # Clean up a bit: "video" is redundant
+            converter.execute("rm -rf " + dockerout + "/" + name + "/video")
+
+            # shutil.move(os.path.join(tmpout, name), outdir)
+        converter.execute("chown -R 1000 " + dockerout)
 
     def fskOf(self, name) -> str:
         for candidate in self._fsk.keys():

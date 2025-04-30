@@ -52,10 +52,8 @@ class KDM:
 
    @staticmethod
    def _parse_timestamp(ts: str) -> datetime:
-      if ts.index('+') > 0:
-         timestamp = datetime.strptime(ts[:ts.index('+')], '%Y-%m-%dT%H:%M:%S')  # pick only the date
-         zone = datetime.strptime(ts[ts.index('+'):], '%z').tzinfo
-      return timestamp.replace(tzinfo=timezone.utc).astimezone(zone)
+      timestamp = datetime.fromisoformat(ts)
+      return timestamp.astimezone()
 
    @property
    def shorttitle(self) -> str:
