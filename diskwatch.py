@@ -26,8 +26,8 @@ class DISKWATCH:
 
    def warn_mail(self, diskname: str, obj):
       m = Mailbox()
-      m.self_mail("HDD " + diskname + " running full", "Disk " + diskname + " is pretty full. Please clean up.\n" +
-                  "Percentage used: " + str(obj.percent) + " (" + str(obj.free / (1024*1024)) + " MB free)\n")
+      m.self_mail("HDD " + diskname + " läuft über", "Disk " + diskname + " is ganz schön voll. Bitte aufräumen.\n" +
+                  "Prozent benutzt: " + str(obj.percent) + " (" + str(obj.free / (1024*1024)) + " MB frei)\n")
 
 
 if __name__ == '__main__':

@@ -8,7 +8,7 @@ from datetime import date
 
 basedir = "~/Dropbox/DCP/Transition"
 fsklib  = "fsk.json"
-outdir  = "/srv/dev-disk-by-label-Trailers/neue"
+outdir  = "/srv/trailers/neue"
 base    = "/tmp"
 dockerbase = "/data"
 
