@@ -55,7 +55,7 @@ class MailParser:
 """
 
       for kdm in self.messages:
-         have_valid_key = self.titles.get(kdm.title, false)
+         have_valid_key = self.titles.get(kdm.title, False)
          body += kdm.tohtml(have_valid_key) + "\n"
       return body + "\n</body>\n</html>"
 
