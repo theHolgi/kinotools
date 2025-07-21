@@ -2,6 +2,8 @@
 # -*- coding: UTF-8 -*-
 import os, sys
 from datetime import datetime, timezone
+from pathlib import Path
+
 from src.kdm import KDM
 from argparse import ArgumentParser
 
@@ -23,7 +25,12 @@ def clean_keys(basedir: str, dryrun: bool) -> None:
                else:
                   comment = " abgelaufen seit " + str(age.days) + " Tagen. "
                   if not dryrun:
-                     os.unlink(filename)
+                     p = Path(filename)
+                     p.unlink()
+                     try:
+                        p.parent.rmdir()
+                     except OSError:
+                        pass
                print(validuntil.strftime("%Y-%m-%d") + " (" + filename + ") -> " + comment)
 
 if __name__ == "__main__":
