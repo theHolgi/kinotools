@@ -6,10 +6,13 @@ import logging
 import email
 import zipfile
 import binascii
+from typing import Optional
+
 from src.settings import SETTINGS
 from datetime import datetime
 from src.kdm import KDM
 from src.mailbox import Mailbox
+from src.signal import Signal
 
 debuglevel = 1
 
@@ -68,16 +71,25 @@ class MailParser:
       if len(self.messages) > 0:
          self.M.self_mail(self._mail_header(), self._mail_body())
 
+   def signal_report(self) -> Optional[str]:
+      if len(self.messages) > 0:
+         msg = "Ey buddy, ich hab neue Schluessel geladen:\n"
+         for kdm in self.messages:
+            have_valid_key = self.titles.get(kdm.title, False)
+            msg += kdm.title + ('' if have_valid_key else " (voll ungueltig)") + "\n"
+         return msg
+
    def run(self) -> list:
+      STORED = "KinoStored2"
       results = []
       self.logger.info(" ======================== " + datetime.now().isoformat() + " ==========================")
       typ, data = self.M.search(None, 'ALL')
       for num in data[0].split():
          typ, data = self.M.fetch(num, 'FLAGS')
          flags = imaplib.ParseFlags(data[0])
-         if "KinoStored" in flags:
+         if STORED in flags:
             self.logger.debug("-> Nachricht %s schon gespeichert" % num)
-         if "KinoStored" not in flags or self.dry:
+         if STORED not in flags or self.dry:
             typ, data = self.M.fetch(num, '(RFC822)')
             mail = email.message_from_bytes(data[0][1])
             uuid = mail.get('Message-ID')
@@ -107,7 +119,7 @@ class MailParser:
                if not self.dry:
                   self.M.forward(mail, self.config.get(self.CONFIGSECTION, "Notify"))
             if not self.dry:
-               self.M.store(num, '+FLAGS', 'KinoStored')
+               self.M.store(num, '+FLAGS', STORED)
       self.M.close()
       if not self.dry:
          deleted = self.config.clean_uuid_cache()
@@ -175,9 +187,14 @@ if __name__ == '__main__':
    args = arg.parse_args()
    logging.basicConfig(level=logging.DEBUG if args.debug else logging.INFO)
 
-   parser = MailParser(SETTINGS())
+   settings = SETTINGS()
+   parser = MailParser(settings)
    if args.dry_run:
       parser.dry_run()
    attachments = parser.run()
    parser.store_attachments(attachments)
-   parser.mail_report()
+   # parser.mail_report()
+   message = parser.signal_report()
+   if message is not None:
+      s = Signal(settings.get('Signal', 'Account'))
+      s.send(message, settings.get('Signal', 'Target'))
