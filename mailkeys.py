@@ -18,10 +18,8 @@ class MailParser:
    CONFIGSECTION = 'Email'
    SCREENSECTION = 'Screen'
 
-   def __init__(self):
-      config = SETTINGS()
+   def __init__(self, config: SETTINGS):
       self.logger = logging.getLogger(self.__class__.__name__)
-      self.outdir = config.get(self.CONFIGSECTION, 'Basepath')
       self.config = config
       self.M = Mailbox(debuglevel)
       self.dry = False
@@ -55,7 +53,7 @@ class MailParser:
 """
 
       for kdm in self.messages:
-         have_valid_key = self.titles.get(kdm.title, false)
+         have_valid_key = self.titles.get(kdm.title, False)
          body += kdm.tohtml(have_valid_key) + "\n"
       return body + "\n</body>\n</html>"
 
@@ -70,7 +68,8 @@ class MailParser:
       if len(self.messages) > 0:
          self.M.self_mail(self._mail_header(), self._mail_body())
 
-   def run(self) -> None:
+   def run(self) -> list:
+      results = []
       self.logger.info(" ======================== " + datetime.now().isoformat() + " ==========================")
       typ, data = self.M.search(None, 'ALL')
       for num in data[0].split():
@@ -99,8 +98,10 @@ class MailParser:
             self.logger.info('Ungelesene Nachricht #%s Subject:%s' % (num, mail["Subject"]))
             print(mail["Subject"])
             #    print 'Message %s Filename:%s\n' % (num, mail.get_filename())
-            if self.parse_mail(mail, count=num):
+            attachments = self.parse_mail(mail, count=num)
+            if len(attachments) > 0:
                self.logger.info("Schluessel gespeichert von Machricht \"%s\"" % mail["Subject"])
+               results.extend(attachments)
             if "DCP-Download" in mail["Subject"]:
                self.logger.info("%s ist Download mail" % num)
                if not self.dry:
@@ -111,10 +112,11 @@ class MailParser:
       if not self.dry:
          deleted = self.config.clean_uuid_cache()
          self.logger.info("Removed from cache: %s" % deleted)
+      return results
 
-   def parse_mail(self, mail, count=1) -> bool:
+   def parse_mail(self, mail, count=1) -> list:
+      attachments = []
       n = 1
-      stored = False
       for part in mail.walk():
          self.logger.debug("----- part %d (%s) -----------" % (n, part.get_content_type()))
          self.logger.debug(str(part)[:160] + "...")
@@ -125,40 +127,43 @@ class MailParser:
             if filename is None:
                self.logger.debug("Dateiname konnte nicht ermittelt werden")
                filename = "attachment.zip"
-            tmpfile = "/tmp/msg%s_%s" % (count, filename)
-
-            self.logger.info("Speichere attachment: " + tmpfile)
-            content = part.get_payload(decode=True)
-            with open(tmpfile, "wb") as f:
-               f.write(content)
-            # Now, unzip
-            if zipfile.is_zipfile(tmpfile):
-               dirname = self.outdir + "/" + os.path.splitext(os.path.basename(filename))[0]
-               if not os.path.exists(dirname):
-                  os.mkdir(dirname)
-               z = zipfile.ZipFile(tmpfile, mode="r")
-               for memberfile in z.namelist():
-                  if os.path.exists(dirname + "/" + memberfile):
-                     self.logger.info(memberfile + " existiert bereits")
-                  else:
-                     self.logger.info("... " + memberfile)
-                     if memberfile[-4:].lower() == '.xml':
-                        member = z.extract(memberfile, dirname)
-                        stored = True
-                        kdm = KDM.from_file(member)
-                        kdm.for_screen(self.config.get(self.SCREENSECTION, 'pattern'))
-                        if kdm.validfrom is not None:
-                           self.logger.info("Is valid from: %s ... %s" % (kdm.validfrom, kdm.validuntil))
-                           self.add_key(kdm)
-                     else:
-                        self.logger.info(" Endung " + memberfile[-4:] + " ist kein XML.")
-               # Aufraeumen
-               os.remove(tmpfile)
-            else:
-               self.logger.info("Kein ZIP")
+            attachments.append([filename, part.get_payload(decode=True)])
          n += 1
-      return stored
+      return attachments
 
+   def store_attachments(self, attachments)->None:
+      outdir = self.config.get(self.CONFIGSECTION, 'Basepath')
+      for count, attachment in enumerate(attachments):
+         filename, content = attachment
+         tmpfile = "/tmp/msg%s_%s" % (count, filename)
+
+         self.logger.info("Speichere attachment: " + tmpfile)
+         with open(tmpfile, "wb") as f:
+            f.write(content)
+         # Now, unzip
+         if zipfile.is_zipfile(tmpfile):
+            dirname = outdir + "/" + os.path.splitext(os.path.basename(filename))[0]
+            if not os.path.exists(dirname):
+               os.mkdir(dirname)
+            z = zipfile.ZipFile(tmpfile, mode="r")
+            for memberfile in z.namelist():
+               if os.path.exists(dirname + "/" + memberfile):
+                  self.logger.info(memberfile + " existiert bereits")
+               else:
+                  self.logger.info("... " + memberfile)
+                  if memberfile[-4:].lower() == '.xml':
+                     member = z.extract(memberfile, dirname)
+                     kdm = KDM.from_file(member)
+                     kdm.for_screen(self.config.get(self.SCREENSECTION, 'pattern'))
+                     if kdm.validfrom is not None:
+                        logging.info("Is valid from: %s ... %s" % (kdm.validfrom, kdm.validuntil))
+                        self.add_key(kdm)
+                  else:
+                     self.logger.info(" Endung " + memberfile[-4:] + " ist kein XML.")
+            # Aufraeumen
+            os.remove(tmpfile)
+         else:
+            self.logger.info("Kein ZIP")
 
 
 if __name__ == '__main__':
@@ -170,8 +175,9 @@ if __name__ == '__main__':
    args = arg.parse_args()
    logging.basicConfig(level=logging.DEBUG if args.debug else logging.INFO)
 
-   parser = MailParser()
+   parser = MailParser(SETTINGS())
    if args.dry_run:
       parser.dry_run()
-   parser.run()
+   attachments = parser.run()
+   parser.store_attachments(attachments)
    parser.mail_report()
