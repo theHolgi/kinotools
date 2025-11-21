@@ -80,7 +80,7 @@ class MailParser:
          return msg
 
    def run(self) -> list:
-      STORED = "KinoStored2"
+      STORED = "KinoStored"
       results = []
       self.logger.info(" ======================== " + datetime.now().isoformat() + " ==========================")
       typ, data = self.M.search(None, 'ALL')
@@ -197,4 +197,9 @@ if __name__ == '__main__':
    message = parser.signal_report()
    if message is not None:
       s = Signal(settings.get('Signal', 'Account'))
-      s.send(message, settings.get('Signal', 'Target'))
+      phone = settings.get('Signal', 'Target', fallback=None)
+      if phone is not None:
+         s.send(message, phone)
+      group = settings.get('Signal', 'TargetGroup', fallback=None)
+      if group is not None:
+         s.sendGroup(message, group)

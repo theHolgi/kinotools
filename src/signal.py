@@ -22,6 +22,13 @@ class Signal:
 		result = subprocess.run(cmd)
 		return result.returncode == 0
 
+	def sendGroup(self, msg: str, gid: str) -> bool:
+		if id is None:
+			raise ValueError("Have no recipient")
+		cmd = self._cmd() + ['send', '-m', msg, '-g', gid]
+		result = subprocess.run(cmd)
+		return result.returncode == 0
+
 
 if __name__ == "__main__":
 	from settings import SETTINGS
