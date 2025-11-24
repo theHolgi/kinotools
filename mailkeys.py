@@ -73,7 +73,7 @@ class MailParser:
 
    def signal_report(self) -> Optional[str]:
       if len(self.messages) > 0:
-         msg = "Ey buddy, ich hab neue Schluessel geladen:\n"
+         msg = "Wir haben neue Schlüssel bekommen:\n"
          for kdm in self.messages:
             have_valid_key = self.titles.get(kdm.title, False)
             msg += kdm.title + ('' if have_valid_key else " (voll ungueltig)") + "\n"
@@ -103,7 +103,7 @@ class MailParser:
                self.logger.warning("%s: Keine UUID" % num)
             else:
                if self.config.query_uuid(uuid):
-                  self.logger.debug("-> Nachricht %s schon prozessiert" % num)
+                  self.logger.debug(f"-> Nachricht {num}, UUID {uuid}, Subject: {mail['Subject']} schon prozessiert")
                   continue
                elif not self.dry:
                   self.config.add_uuid(uuid)
@@ -193,7 +193,7 @@ if __name__ == '__main__':
       parser.dry_run()
    attachments = parser.run()
    parser.store_attachments(attachments)
-   # parser.mail_report()
+   parser.mail_report()
    message = parser.signal_report()
    if message is not None:
       s = Signal(settings.get('Signal', 'Account'))
