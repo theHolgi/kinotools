@@ -4,6 +4,7 @@ import os
 import imaplib
 import logging
 import email
+import random
 import zipfile
 import binascii
 from typing import Optional
@@ -73,7 +74,11 @@ class MailParser:
 
    def signal_report(self) -> Optional[str]:
       if len(self.messages) > 0:
-         msg = "Wir haben neue Schlüssel bekommen:\n"
+         messages = ["Wir haben neue Schlüssel bekommen:",
+                     "Ey buddy, ich habe das in den Mails gefunden:",
+                     "Dude, neue Schlüssel sind da:",
+                     "Diese Filme können wir jetzt auch schauen:"]
+         msg = random.choice(messages) + "\n"
          for kdm in self.messages:
             have_valid_key = self.titles.get(kdm.title, False)
             msg += kdm.title + ('' if have_valid_key else " (voll ungueltig)") + "\n"
