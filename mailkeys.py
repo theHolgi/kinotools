@@ -200,11 +200,11 @@ if __name__ == '__main__':
    parser.store_attachments(attachments)
    parser.mail_report()
    message = parser.signal_report()
-   if message is not None:
+   if message is not None and settings.has_section('Signal'):
       s = Signal(settings.get('Signal', 'Account'))
-      phone = settings.get('Signal', 'Target', fallback=None)
+      phone = settings.get('Signal', 'KdmTarget', fallback=None)
       if phone is not None:
          s.send(message, phone)
-      group = settings.get('Signal', 'TargetGroup', fallback=None)
+      group = settings.get('Signal', 'KdmTargetGroup', fallback=None)
       if group is not None:
          s.sendGroup(message, group)
