@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
+import glob
 import json
 import os, sys
 import re
 import shutil
 import subprocess
 from datetime import date
+from pathlib import Path
 
-basedir = "~/Dropbox/DCP/Transition"
 fsklib  = "fsk.json"
-outdir  = "/srv/trailers/neue"
-base    = "/tmp"
+base    = "/home/lamm/tmp"
 dockerbase = "/data"
+
+remote = "insel_dcp@kinonas.filminsel-biblis.de:/srv/trailers/neue"
 
 def debug(s):
     print(s)
@@ -50,7 +52,7 @@ class Transition:
     def tmpout(self) -> str:
         return base + "/out"
 
-    def generate(self):
+    def generate(self, kind):
         if len(self.inputs) == 0:
             debug("No inputs")
             return
@@ -77,7 +79,7 @@ class Transition:
                   "DCP: " + dcpname + "\n" +
                   "FSK: " + str(fsk) + "\n" +
                   "========================================================================================\n")
-            converter.execute("dcpomatic2_create tmp/" + input + " -o " + dockerout + "/" + name + " -s 10 -c XSN -n " + name)
+            converter.execute("dcpomatic2_create tmp/" + input + " -o " + dockerout + "/" + name + " -s 10 -c " + kind + " --no-use-isdcf-name -n " + dcpname)
             converter.execute("dcpomatic2_cli " + dockerout + "/" + name)
             # Clean up a bit: "video" is redundant
             converter.execute("rm -rf " + dockerout + "/" + name + "/video")
@@ -106,13 +108,28 @@ class Transition:
         if fsk == 18:
             return "-m NC-17" # No one 17 and under
         
-    def cleanup(self, donedir):
+    def cleanup(self, donedir: Path):
         for input in self.inputs:
-            shutil.move(os.path.join(self.basedir, input), os.path.join(donedir, input))
+            shutil.move(os.path.join(self.basedir, input), (donedir / input).as_posix())
 
-if len(sys.argv) > 1:
-    basedir = sys.argv[1]
-t = Transition(basedir, basedir + "/" + fsklib)
-t.generate(outdir)
-if len(sys.argv) > 2:
-    t.cleanup(sys.argv[2])
+if __name__ == "__main__":
+    from argparse import ArgumentParser
+    args = ArgumentParser()
+    args.add_argument("basedir", help="Base directory")
+    args.add_argument("--upload", "-u", action="store_true", required=False)
+    args.add_argument("--outdir", "-o", help="Output directory")
+    args.add_argument("--kind", "-k", default="XSN", choices=["FTR", "SHR", "TLR", "TST", "XSN", "RTG", "TSR", "POL", "PSA", "ADV"])
+    arg = args.parse_args()
+
+    outdir = os.path.join(arg.basedir, 'out')
+    t = Transition(arg.basedir, arg.basedir + "/" + fsklib)
+    t.generate(arg.kind)
+    transdir = "Transition-" + date.today().isoformat()
+
+    if arg.upload:
+        subprocess.run(["rsync", "-var", t.tmpout + '/', remote + '/' + transdir])
+    if arg.outdir is not None:
+        outdir = Path(arg.outdir) / transdir
+        if not outdir.exists():
+            outdir.mkdir(parents=True)
+        t.cleanup(arg.outdir)
