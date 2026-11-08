@@ -11,6 +11,9 @@ import urllib.request
 from argparse import ArgumentParser
 from datetime import datetime
 from src.settings import SETTINGS
+from src.mailbox import Mailbox
+from src.settings import SETTINGS
+from src.signal import Signal
 
 AUTH_URL = "https://ae-sl-prod-api-authentication.azurewebsites.net/application/token"
 API_URL = "https://ae-sl-prod-api-portal.azurewebsites.net/"
@@ -50,12 +53,18 @@ class Weischerplay:
             result.append({'name': playout['annotationText'], 'playout_id': playout['playoutId']})
       return result
 
+def write_mail(header: str, body: str) -> None:
+   m = Mailbox()
+   m.self_mail(header, body)
 
 if __name__ == '__main__':
    parser = ArgumentParser(description='Gebuchte Werbeeinschaltungen der aktuellen Woche von weischerPLAY holen')
    parser.add_argument('-o', '--output', default='weischerplay.json', help='JSON-Datei (Default: %(default)s)')
+   parser.add_argument('-m', '--mail', action="store_true", help="Write mail")
+   parser.add_argument('-s', '--signal', action="store_true", help="Send Signal message")
    args = parser.parse_args()
 
+   settings = SETTINGS()
    w = Weischerplay()
    try:
       w.login()
@@ -65,5 +74,33 @@ if __name__ == '__main__':
 
    for p in playouts:
       print('{:<50} {}'.format(p['name'], p['playout_id']))
+
    with open(args.output, 'w') as f:
       json.dump(playouts, f, indent=2, ensure_ascii=False)
+   if args.mail:
+      pl = "" if len(playouts) == 1 else "en"
+      header = f"{len(playouts)} Schlemm Buchung{pl} diese Woche"
+      if len(playouts) == 0:
+         body = "Nichts zu tun."
+      else:
+         body = """<html lang="en">
+<head><meta charset="UTF-8"><title>Title</title></head>
+<body>Unsere Werbe-Buchungen für diese Woche:<nl><ul>
+"""
+         body += "\n".join(f"<li>{playout['name']}</lu>" for playout in playouts)
+         body += "</ul>Gruß, Ihr Filminsel 🤖</body></html>"
+      write_mail(header, body)
+   if args.signal and settings.has_section("Signal"):
+      s = Signal(settings.get('Signal', 'Account'))
+      if len(playouts) > 0:
+         message = "Wir haben diese Woche folgende Werbebuchungen:\n"
+         message += "\n".join("- {playout['name']}" for playout in playouts)
+      else:
+         message = "Diese Woche keine Werbung."
+      phone = settings.get('Signal', 'WerbungTarget', fallback=None)
+      if phone is not None:
+         s.send(message, phone)
+      group = settings.get('Signal', 'WerbungTargetGroup', fallback=None)
+      if group is not None:
+         s.sendGroup(message, group)
+

@@ -4,12 +4,16 @@ import os
 import imaplib
 import logging
 import email
+import random
 import zipfile
 import binascii
+from typing import Optional
+
 from src.settings import SETTINGS
 from datetime import datetime
 from src.kdm import KDM
 from src.mailbox import Mailbox
+from src.signal import Signal
 
 debuglevel = 1
 
@@ -18,10 +22,8 @@ class MailParser:
    CONFIGSECTION = 'Email'
    SCREENSECTION = 'Screen'
 
-   def __init__(self):
-      config = SETTINGS()
+   def __init__(self, config: SETTINGS):
       self.logger = logging.getLogger(self.__class__.__name__)
-      self.outdir = config.get(self.CONFIGSECTION, 'Basepath')
       self.config = config
       self.M = Mailbox(debuglevel)
       self.dry = False
@@ -70,15 +72,29 @@ class MailParser:
       if len(self.messages) > 0:
          self.M.self_mail(self._mail_header(), self._mail_body())
 
-   def run(self) -> None:
+   def signal_report(self) -> Optional[str]:
+      if len(self.messages) > 0:
+         messages = ["Wir haben neue Schlüssel bekommen:",
+                     "Ey buddy, ich habe das in den Mails gefunden:",
+                     "Dude, neue Schlüssel sind da:",
+                     "Diese Filme können wir jetzt auch schauen:"]
+         msg = random.choice(messages) + "\n"
+         for kdm in self.messages:
+            have_valid_key = self.titles.get(kdm.title, False)
+            msg += kdm.title + ('' if have_valid_key else " (voll ungueltig)") + "\n"
+         return msg
+
+   def run(self) -> list:
+      STORED = "KinoStored"
+      results = []
       self.logger.info(" ======================== " + datetime.now().isoformat() + " ==========================")
       typ, data = self.M.search(None, 'ALL')
       for num in data[0].split():
          typ, data = self.M.fetch(num, 'FLAGS')
          flags = imaplib.ParseFlags(data[0])
-         if "KinoStored" in flags:
+         if STORED in flags:
             self.logger.debug("-> Nachricht %s schon gespeichert" % num)
-         if "KinoStored" not in flags or self.dry:
+         if STORED not in flags or self.dry:
             typ, data = self.M.fetch(num, '(RFC822)')
             mail = email.message_from_bytes(data[0][1])
             uuid = mail.get('Message-ID')
@@ -92,29 +108,32 @@ class MailParser:
                self.logger.warning("%s: Keine UUID" % num)
             else:
                if self.config.query_uuid(uuid):
-                  self.logger.debug("-> Nachricht %s schon prozessiert" % num)
+                  self.logger.debug(f"-> Nachricht {num}, UUID {uuid}, Subject: {mail['Subject']} schon prozessiert")
                   continue
                elif not self.dry:
                   self.config.add_uuid(uuid)
             self.logger.info('Ungelesene Nachricht #%s Subject:%s' % (num, mail["Subject"]))
             print(mail["Subject"])
             #    print 'Message %s Filename:%s\n' % (num, mail.get_filename())
-            if self.parse_mail(mail, count=num):
+            attachments = self.parse_mail(mail, count=num)
+            if len(attachments) > 0:
                self.logger.info("Schluessel gespeichert von Machricht \"%s\"" % mail["Subject"])
+               results.extend(attachments)
             if "DCP-Download" in mail["Subject"]:
                self.logger.info("%s ist Download mail" % num)
                if not self.dry:
                   self.M.forward(mail, self.config.get(self.CONFIGSECTION, "Notify"))
             if not self.dry:
-               self.M.store(num, '+FLAGS', 'KinoStored')
+               self.M.store(num, '+FLAGS', STORED)
       self.M.close()
       if not self.dry:
          deleted = self.config.clean_uuid_cache()
          self.logger.info("Removed from cache: %s" % deleted)
+      return results
 
-   def parse_mail(self, mail, count=1) -> bool:
+   def parse_mail(self, mail, count=1) -> list:
+      attachments = []
       n = 1
-      stored = False
       for part in mail.walk():
          self.logger.debug("----- part %d (%s) -----------" % (n, part.get_content_type()))
          self.logger.debug(str(part)[:160] + "...")
@@ -125,40 +144,43 @@ class MailParser:
             if filename is None:
                self.logger.debug("Dateiname konnte nicht ermittelt werden")
                filename = "attachment.zip"
-            tmpfile = "/tmp/msg%s_%s" % (count, filename)
-
-            self.logger.info("Speichere attachment: " + tmpfile)
-            content = part.get_payload(decode=True)
-            with open(tmpfile, "wb") as f:
-               f.write(content)
-            # Now, unzip
-            if zipfile.is_zipfile(tmpfile):
-               dirname = self.outdir + "/" + os.path.splitext(os.path.basename(filename))[0]
-               if not os.path.exists(dirname):
-                  os.mkdir(dirname)
-               z = zipfile.ZipFile(tmpfile, mode="r")
-               for memberfile in z.namelist():
-                  if os.path.exists(dirname + "/" + memberfile):
-                     self.logger.info(memberfile + " existiert bereits")
-                  else:
-                     self.logger.info("... " + memberfile)
-                     if memberfile[-4:].lower() == '.xml':
-                        member = z.extract(memberfile, dirname)
-                        stored = True
-                        kdm = KDM.from_file(member)
-                        kdm.for_screen(self.config.get(self.SCREENSECTION, 'pattern'))
-                        if kdm.validfrom is not None:
-                           self.logger.info("Is valid from: %s ... %s" % (kdm.validfrom, kdm.validuntil))
-                           self.add_key(kdm)
-                     else:
-                        self.logger.info(" Endung " + memberfile[-4:] + " ist kein XML.")
-               # Aufraeumen
-               os.remove(tmpfile)
-            else:
-               self.logger.info("Kein ZIP")
+            attachments.append([filename, part.get_payload(decode=True)])
          n += 1
-      return stored
+      return attachments
 
+   def store_attachments(self, attachments)->None:
+      outdir = self.config.get(self.CONFIGSECTION, 'Basepath')
+      for count, attachment in enumerate(attachments):
+         filename, content = attachment
+         tmpfile = "/tmp/msg%s_%s" % (count, filename)
+
+         self.logger.info("Speichere attachment: " + tmpfile)
+         with open(tmpfile, "wb") as f:
+            f.write(content)
+         # Now, unzip
+         if zipfile.is_zipfile(tmpfile):
+            dirname = outdir + "/" + os.path.splitext(os.path.basename(filename))[0]
+            if not os.path.exists(dirname):
+               os.mkdir(dirname)
+            z = zipfile.ZipFile(tmpfile, mode="r")
+            for memberfile in z.namelist():
+               if os.path.exists(dirname + "/" + memberfile):
+                  self.logger.info(memberfile + " existiert bereits")
+               else:
+                  self.logger.info("... " + memberfile)
+                  if memberfile[-4:].lower() == '.xml':
+                     member = z.extract(memberfile, dirname)
+                     kdm = KDM.from_file(member)
+                     kdm.for_screen(self.config.get(self.SCREENSECTION, 'pattern'))
+                     if kdm.validfrom is not None:
+                        logging.info("Is valid from: %s ... %s" % (kdm.validfrom, kdm.validuntil))
+                        self.add_key(kdm)
+                  else:
+                     self.logger.info(" Endung " + memberfile[-4:] + " ist kein XML.")
+            # Aufraeumen
+            os.remove(tmpfile)
+         else:
+            self.logger.info("Kein ZIP")
 
 
 if __name__ == '__main__':
@@ -170,8 +192,19 @@ if __name__ == '__main__':
    args = arg.parse_args()
    logging.basicConfig(level=logging.DEBUG if args.debug else logging.INFO)
 
-   parser = MailParser()
+   settings = SETTINGS()
+   parser = MailParser(settings)
    if args.dry_run:
       parser.dry_run()
-   parser.run()
+   attachments = parser.run()
+   parser.store_attachments(attachments)
    parser.mail_report()
+   message = parser.signal_report()
+   if message is not None and settings.has_section('Signal'):
+      s = Signal(settings.get('Signal', 'Account'))
+      phone = settings.get('Signal', 'KdmTarget', fallback=None)
+      if phone is not None:
+         s.send(message, phone)
+      group = settings.get('Signal', 'KdmTargetGroup', fallback=None)
+      if group is not None:
+         s.sendGroup(message, group)
