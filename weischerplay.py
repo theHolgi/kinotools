@@ -10,6 +10,9 @@ import urllib.parse
 import urllib.request
 from argparse import ArgumentParser
 from datetime import datetime
+from pathlib import Path
+from typing import List
+
 from src.settings import SETTINGS
 from src.mailbox import Mailbox
 from src.settings import SETTINGS
@@ -53,15 +56,45 @@ class Weischerplay:
             result.append({'name': playout['annotationText'], 'playout_id': playout['playoutId']})
       return result
 
-def write_mail(header: str, body: str) -> None:
+def write_mail(playouts) -> None:
    m = Mailbox()
+   pl = "" if len(playouts) == 1 else "en"
+   header = f"{len(playouts)} Schlemm Buchung{pl} diese Woche"
+   if len(playouts) == 0:
+      body = "Nichts zu tun."
+   else:
+      body = """<html lang="en">
+   <head><meta charset="UTF-8"><title>Title</title></head>
+   <body>Unsere Werbe-Buchungen für diese Woche:<nl><ul>
+   """
+   body += "\n".join(f"<li>{playout['name']}</lu>" for playout in playouts)
+   body += "</ul>Gruß, Ihr Filminsel 🤖</body></html>"
    m.self_mail(header, body)
+
+def send_signal(playouts: List[dict], other: List[str]) -> None:
+   s = Signal(settings.get('Signal', 'Account'))
+   if len(playouts) > 0:
+      message = "Wir haben diese Woche folgende Werbebuchungen:\n"
+      message += "\n".join("- {playout['name']}" for playout in playouts)
+   else:
+      message = "Schlemm hat diese Woche keine Werbung."
+   if other:
+      message += f"\nAußerdem nicht vergessen:\n"
+      message += "\n".join(f"- {name}" for name in other)
+   phone = settings.get('Signal', 'WerbungTarget', fallback=None)
+   if phone is not None:
+      s.send(message, phone)
+   group = settings.get('Signal', 'WerbungTargetGroup', fallback=None)
+   if group is not None:
+      s.sendGroup(message, group)
+
 
 if __name__ == '__main__':
    parser = ArgumentParser(description='Gebuchte Werbeeinschaltungen der aktuellen Woche von weischerPLAY holen')
    parser.add_argument('-o', '--output', default='weischerplay.json', help='JSON-Datei (Default: %(default)s)')
    parser.add_argument('-m', '--mail', action="store_true", help="Write mail")
    parser.add_argument('-s', '--signal', action="store_true", help="Send Signal message")
+   parser.add_argument('--static', type=Path, required=False, default="")
    args = parser.parse_args()
 
    settings = SETTINGS()
@@ -77,30 +110,11 @@ if __name__ == '__main__':
 
    with open(args.output, 'w') as f:
       json.dump(playouts, f, indent=2, ensure_ascii=False)
+   other = []
+   if args.static.is_file():
+      other = args.static.read_text().splitlines()
    if args.mail:
-      pl = "" if len(playouts) == 1 else "en"
-      header = f"{len(playouts)} Schlemm Buchung{pl} diese Woche"
-      if len(playouts) == 0:
-         body = "Nichts zu tun."
-      else:
-         body = """<html lang="en">
-<head><meta charset="UTF-8"><title>Title</title></head>
-<body>Unsere Werbe-Buchungen für diese Woche:<nl><ul>
-"""
-         body += "\n".join(f"<li>{playout['name']}</lu>" for playout in playouts)
-         body += "</ul>Gruß, Ihr Filminsel 🤖</body></html>"
-      write_mail(header, body)
+      write_mail(playouts)
    if args.signal and settings.has_section("Signal"):
-      s = Signal(settings.get('Signal', 'Account'))
-      if len(playouts) > 0:
-         message = "Wir haben diese Woche folgende Werbebuchungen:\n"
-         message += "\n".join("- {playout['name']}" for playout in playouts)
-      else:
-         message = "Diese Woche keine Werbung."
-      phone = settings.get('Signal', 'WerbungTarget', fallback=None)
-      if phone is not None:
-         s.send(message, phone)
-      group = settings.get('Signal', 'WerbungTargetGroup', fallback=None)
-      if group is not None:
-         s.sendGroup(message, group)
+      send_signal(playouts, other)
 
