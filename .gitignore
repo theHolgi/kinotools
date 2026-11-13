@@ -2,4 +2,4 @@
 secrets.ini
 *.pyc
 .live.json
-weischerplay.json
+.weischerplay_history.json
